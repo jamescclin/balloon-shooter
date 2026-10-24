@@ -1,0 +1,54 @@
+# balloon-shooter 設定。相對路徑以 repo 根目錄為基準。
+
+model:
+  # ai-balloon 在 Jetson 上用 detection/export_engine.py 產生的 TensorRT engine
+  path: ../ai-balloon/models/balloon.engine
+  imgsz: 640          # 需與 engine 匯出時一致
+  conf: 0.5
+
+camera:
+  source: mipi        # mipi[:id] / usb[:index] / /dev/videoN / 影片檔
+  width: 1280
+  height: 720
+  fps: 30
+  flip: 0             # MIPI 畫面翻轉 (nvvidconv flip-method)
+  hfov: 62.2          # 水平視角 (度)。IMX219 原廠鏡頭約 62.2，換鏡頭要改
+
+driver:
+  type: uln2003       # uln2003 / mock (不接硬體)
+  uln2003:
+    steps_per_rev: 4096     # 28BYJ-48 半步模式一圈的步數 (減速比約 1:64)
+    step_delay: 0.002       # 每半步間隔 (秒)。太小馬達會抖動、掉步；約 0.0015 是上限
+    release_when_idle: true # 停止時線圈斷電，避免馬達和 ULN2003 發燙 (28BYJ-48 減速齒輪本身能撐住)
+
+# 角度單位為度，以「啟動時的位置 = home」為基準 (步進馬達沒有絕對位置)。
+# pins 是 ULN2003 的 IN1~IN4 接到 Jetson 40-pin 的腳位 (BOARD 編號)。
+pan:                  # 水平
+  pins: [7, 11, 13, 15]
+  min: -90
+  max: 90
+  home: 0
+  invert: false       # 按 → 或目標在右邊時雲台卻往左轉，就改成 true
+tilt:                 # 垂直
+  pins: [29, 31, 33, 35]
+  min: -30
+  max: 45
+  home: 0
+  invert: false       # 按 ↑ 或目標在上方時雲台卻往下轉，就改成 true
+trigger:              # 發射器
+  pins: [12, 16, 18, 22]
+  fire_degrees: 90    # 發射時轉幾度
+  return: true        # true: 轉完再反轉回原位；false: 只往同方向轉 (例如凸輪每次轉 360)
+
+aim:
+  kp: 0.5             # 每幀修正誤差的比例。震盪就調小，太慢就調大
+  max_step: 8         # 每幀最多轉幾度
+  deadband: 0.3       # 誤差小於此值不動，避免抖動
+  offset_x: 0         # 準心相對畫面中心的像素偏移，補償發射器與鏡頭的視差
+  offset_y: 0
+  return_home_after: 3.0   # 失去目標幾秒後回到 home (0 = 不回)
+
+fire:
+  lock_tolerance: 1.5 # pan / tilt 誤差都小於幾度才算對準
+  lock_frames: 3      # 連續對準幾幀才發射
+  cooldown: 1.5       # 兩次發射最少間隔 (秒)

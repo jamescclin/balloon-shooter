@@ -1,0 +1,10 @@
+# Python Environments
+venv/
+.venv/
+env/
+__pycache__/
+
+# Model weights (use the ones from ai-balloon)
+*.pt
+*.onnx
+*.engine

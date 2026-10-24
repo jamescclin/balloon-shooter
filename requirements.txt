@@ -1,0 +1,10 @@
+# balloon-shooter (Jetson Orin Nano, aarch64)
+# opencv-python is intentionally excluded on Jetson: the JetPack OpenCV has the
+# GStreamer support needed for MIPI cameras. PyTorch / TensorRT come from JetPack
+# (see install.sh), same as ai-balloon.
+ultralytics>=8.4.178  # keep in step with the version ai-balloon used for training
+numpy>=1.23,<2        # JetPack OpenCV 4.8.0 needs NumPy 1.x
+pyyaml
+
+# ULN2003 stepper driver (driver.type: uln2003)
+Jetson.GPIO
