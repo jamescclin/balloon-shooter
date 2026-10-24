@@ -9,8 +9,12 @@ class MotorDriver(ABC):
     """
 
     @abstractmethod
-    def set_angle(self, axis, angle):
-        """設定目標角度。不阻塞，馬達會在背景轉過去。"""
+    def set_angle(self, axis, angle, speed=None):
+        """設定目標角度。不阻塞，馬達會在背景轉過去。speed 為度/秒，None 表示最快速度。"""
+
+    def stop(self, axis):
+        """停在目前位置。"""
+        self.set_angle(axis, self.get_angle(axis))
 
     @abstractmethod
     def get_angle(self, axis):

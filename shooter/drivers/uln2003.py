@@ -24,7 +24,8 @@ class Stepper:
     def __init__(self, pins, steps_per_rev, step_delay, release_when_idle, start_angle=0.0):
         self.pins = list(pins)
         self.steps_per_deg = steps_per_rev / 360
-        self.step_delay = step_delay
+        self.step_delay = step_delay  # 最快速度
+        self.delay = step_delay       # 目前這次移動的速度
         self.release_when_idle = release_when_idle
         self.position = round(start_angle * self.steps_per_deg)
         self.target = self.position
@@ -39,9 +40,16 @@ class Stepper:
     def angle(self):
         return self.position / self.steps_per_deg
 
-    def move_to(self, angle):
+    def move_to(self, angle, speed=None):
+        """轉到 angle。speed 為度/秒，None 表示最快速度。"""
         with self._cond:
             self.target = round(angle * self.steps_per_deg)
+            self.delay = self.step_delay if not speed else max(self.step_delay, 1 / (speed * self.steps_per_deg))
+            self._cond.notify_all()
+
+    def stop(self):
+        with self._cond:
+            self.target = self.position
             self._cond.notify_all()
 
     def reset_position(self, angle):
@@ -83,8 +91,9 @@ class Stepper:
                     break
                 self.position += 1 if self.target > self.position else -1
                 phase = HALF_STEP[self.position % 8]
+                delay = self.delay
             GPIO.output(self.pins, phase)
-            next_time += self.step_delay
+            next_time += delay
             delay = next_time - time.perf_counter()
             if delay > 0:
                 time.sleep(delay)
@@ -113,8 +122,11 @@ class ULN2003Driver(MotorDriver):
         self.fire_return = cfg["trigger"]["return"]
         self._firing = threading.Lock()
 
-    def set_angle(self, axis, angle):
-        self.motors[axis].move_to(angle)
+    def set_angle(self, axis, angle, speed=None):
+        self.motors[axis].move_to(angle, speed)
+
+    def stop(self, axis):
+        self.motors[axis].stop()
 
     def get_angle(self, axis):
         return self.motors[axis].angle

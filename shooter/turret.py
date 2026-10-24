@@ -2,18 +2,32 @@
 
 
 class Axis:
-    """單一軸的角度狀態。限制在 [min, max]，invert 用來配合馬達安裝方向。"""
+    """單一軸的角度狀態。限制在 [min, max] (null 表示該方向不限制)，invert 用來配合馬達安裝方向。"""
 
     def __init__(self, name, cfg):
         self.name = name
-        self.min = cfg["min"]
-        self.max = cfg["max"]
+        self.min = cfg.get("min")
+        self.max = cfg.get("max")
         self.home = cfg["home"]
         self.sign = -1 if cfg.get("invert", False) else 1
         self.angle = self.home
 
+    @property
+    def unlimited(self):
+        return self.min is None and self.max is None
+
     def clamp(self, angle):
-        return max(self.min, min(self.max, angle))
+        if self.min is not None:
+            angle = max(self.min, angle)
+        if self.max is not None:
+            angle = min(self.max, angle)
+        return angle
+
+    def home_from(self, current):
+        """從 current 回 home 的目標角度。可無限轉的軸走最短路徑，不把轉過的圈數轉回來。"""
+        if not self.unlimited:
+            return self.home
+        return current + (self.home - current + 180) % 360 - 180
 
 
 class Turret:
@@ -27,7 +41,8 @@ class Turret:
         self.deadband = aim["deadband"]
 
     def home(self):
-        self.set(self.pan.home, self.tilt.home)
+        self.set(self.pan.home_from(self.driver.get_angle("pan")),
+                 self.tilt.home_from(self.driver.get_angle("tilt")))
 
     def set(self, pan, tilt):
         """直接設定兩軸角度 (度)，超出範圍會被限制。"""

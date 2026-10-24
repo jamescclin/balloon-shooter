@@ -10,7 +10,7 @@ class MockDriver(MotorDriver):
         self.print_interval = print_interval
         self._last_print = 0.0
 
-    def set_angle(self, axis, angle):
+    def set_angle(self, axis, angle, speed=None):
         self.angles[axis] = angle
         now = time.monotonic()
         if now - self._last_print >= self.print_interval:

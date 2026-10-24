@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from shooter.config import DEFAULT_CONFIG, load_config  # noqa: E402
 from shooter.drivers import create_driver  # noqa: E402
+from shooter.turret import Axis  # noqa: E402
 
 MOVES = {
     "\x1b[D": ("pan", -1), "a": ("pan", -1),
@@ -72,14 +73,19 @@ def main():
     if cfg["driver"]["type"] == "mock":
         driver.print_interval = float("inf")  # 狀態列已顯示角度
 
-    home = {"pan": cfg["pan"]["home"], "tilt": cfg["tilt"]["home"]}
-    targets = {**home, "trigger": 0.0}
+    axes = {name: Axis(name, cfg[name]) for name in ("pan", "tilt")}
+    targets = {"pan": axes["pan"].home, "tilt": axes["tilt"].home, "trigger": 0.0}
     step = 5
 
     def clamp(axis, angle):
         if args.no_limit or axis == "trigger":
             return angle
-        return max(cfg[axis]["min"], min(cfg[axis]["max"], angle))
+        return axes[axis].clamp(angle)
+
+    def go_home():
+        for name, a in axes.items():
+            targets[name] = a.home_from(driver.get_angle(name))
+            driver.set_angle(name, targets[name])
 
     print(__doc__.split("按鍵:")[1].split("步進馬達沒有")[0])
     fd = sys.stdin.fileno()
@@ -92,8 +98,8 @@ def main():
                 break
             if key in MOVES:
                 axis, direction = MOVES[key]
-                if axis != "trigger" and cfg[axis]["invert"]:
-                    direction = -direction
+                if axis != "trigger":
+                    direction *= axes[axis].sign
                 targets[axis] = clamp(axis, targets[axis] + direction * step)
                 driver.set_angle(axis, targets[axis])
             elif key in STEP_SIZES:
@@ -101,13 +107,11 @@ def main():
             elif key == " ":
                 driver.fire()
             elif key == "h":
-                for axis, angle in home.items():
-                    targets[axis] = angle
-                    driver.set_angle(axis, angle)
+                go_home()
             elif key == "z":
-                for axis, angle in home.items():
-                    targets[axis] = angle
-                    driver.reset_position(axis, angle)
+                for name, a in axes.items():
+                    targets[name] = a.home
+                    driver.reset_position(name, a.home)
             elif key == "r":
                 driver.release()
 
@@ -122,8 +126,7 @@ def main():
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_attrs)
         print("\n回到 home...")
-        for axis, angle in home.items():
-            driver.set_angle(axis, angle)
+        go_home()
         driver.close()
 
 

@@ -31,14 +31,32 @@ pan:                  # 水平
   invert: false       # 按 → 或目標在右邊時雲台卻往左轉，就改成 true
 tilt:                 # 垂直
   pins: [29, 31, 33, 35]
-  min: -30
-  max: 45
+  min: null           # null = 不限制，可無限轉 (回 home 時走最短路徑)
+  max: null
   home: 0
-  invert: false       # 按 ↑ 或目標在上方時雲台卻往下轉，就改成 true
+  invert: true        # 按 ↑ 或目標在上方時雲台卻往下轉，就改成 true (實測需反轉)
 trigger:              # 發射器
-  pins: [12, 16, 18, 22]
+  pins: [37, 16, 18, 22]   # IN1 原本用 pin 12，在這片 Jetson 上沒有輸出，改用 pin 37
   fire_degrees: 90    # 發射時轉幾度
   return: true        # true: 轉完再反轉回原位；false: 只往同方向轉 (例如凸輪每次轉 360)
+
+# USB 手把 (tools/motor_gamepad.py)。編號依 Twin USB Joystick 轉接器 (數位模式) 實測。
+gamepad:
+  device: /dev/input/js0
+  pan_axis: 0         # 十字鍵 / 左搖桿 左右 (左 = 負)
+  tilt_axis: 1        # 十字鍵 / 左搖桿 上下 (上 = 負)
+  deadzone: 0.2
+  max_speed: 40       # 推到底時的轉速 (度/秒)，受 step_delay 限制
+  slow_factor: 0.25   # 按住 slow 鍵時的速度比例
+  buttons:
+    home: 0           # Y
+    trigger_forward: 1  # B (按住持續正轉)
+    fire: 2           # A
+    trigger_back: 3   # X (按住持續反轉)
+    slow: 4           # L1 (按住)
+    release: 7        # R2
+    zero: 8           # SELECT
+    quit: 9           # START
 
 aim:
   kp: 0.5             # 每幀修正誤差的比例。震盪就調小，太慢就調大
